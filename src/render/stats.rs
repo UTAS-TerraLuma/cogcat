@@ -32,9 +32,7 @@ pub struct StatsResult {
     pub histograms: Vec<(u32, Histogram)>,
 }
 
-/// The most bins a histogram can have: the shader keeps a workgroup copy of
-/// the counts, and 4096 `u32`s fill WebGPU's default 16 KiB of workgroup memory.
-/// Must match `MAX_BINS` in `stats.wgsl`.
+/// The most bins a request may ask for.
 const MAX_BINS: u32 = 4096;
 
 /// Texels per workgroup each way. Must match `BLOCK` in `stats.wgsl`.
@@ -58,7 +56,7 @@ const FAILED: u8 = 2;
 /// The compute pipelines and the requests in flight.
 pub(super) struct Statistics {
     /// `None` when the device can't run them (no compute shaders, as on
-    /// WebGL-level devices, or too little workgroup memory); every request
+    /// WebGL-level devices); every request
     /// then gives empty histograms.
     pipelines: Option<Pipelines>,
     pending: Vec<Pending>,
@@ -101,7 +99,6 @@ impl Statistics {
         let can_run = limits.max_compute_invocations_per_workgroup >= 256
             && limits.max_compute_workgroup_size_x >= 16
             && limits.max_compute_workgroup_size_y >= 16
-            && limits.max_compute_workgroup_storage_size >= MAX_BINS * 4
             && limits.max_storage_buffers_per_shader_stage >= 2;
         Self {
             pipelines: can_run.then(|| Pipelines::new(device)),

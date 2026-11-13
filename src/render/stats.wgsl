@@ -5,9 +5,13 @@
 //
 // Each dispatch covers one (tile, band) rectangle, with its parameters at a
 // dynamic offset in one uniform buffer. A workgroup of 16 × 16 threads covers
-// a block of BLOCK × BLOCK texels, reducing into workgroup memory first so
-// only one global atomic per workgroup (min/max) or per non-empty bin
-// (histogram) touches the shared buffers.
+// a block of BLOCK × BLOCK texels. The min/max pass reduces into workgroup
+// memory first, so one global atomic per workgroup touches the shared buffer;
+// the histogram pass counts straight into the global bins.
+//
+// No big workgroup arrays: on Windows, wgpu compiles shaders with FXC, which
+// took 25 s to build a per-workgroup histogram of 4096 bins, and the result
+// never finished on WARP.
 
 // Must match `StatsParams` in stats.rs.
 struct Params {
@@ -19,8 +23,6 @@ struct Params {
     _padding: vec2<u32>,
 }
 
-// Must match `MAX_BINS` in stats.rs.
-const MAX_BINS: u32 = 4096u;
 const WORKGROUP: u32 = 16u;
 // Texels per workgroup each way: each thread reads (BLOCK / WORKGROUP)² texels.
 const BLOCK: u32 = 64u;
@@ -35,7 +37,6 @@ const BLOCK: u32 = 64u;
 
 var<workgroup> local_min: atomic<u32>;
 var<workgroup> local_max: atomic<u32>;
-var<workgroup> local_counts: array<atomic<u32>, MAX_BINS>;
 
 // Exponent all ones: infinite or NaN. By bits, since WGSL lets
 // implementations assume floats are always finite.
@@ -121,7 +122,6 @@ fn min_max_pass(
 fn histogram_pass(
     @builtin(workgroup_id) workgroup: vec3<u32>,
     @builtin(local_invocation_id) local: vec3<u32>,
-    @builtin(local_invocation_index) index: u32,
 ) {
     let largest_key = atomicLoad(&min_max[params.slot * 2u + 1u]);
     let smallest_key = ~atomicLoad(&min_max[params.slot * 2u]);
@@ -133,22 +133,15 @@ fn histogram_pass(
     // Halved, so the range of values near ±f32::MAX doesn't overflow.
     let half_range = high * 0.5 - low * 0.5;
 
+    let base = params.slot * bins;
     let steps = BLOCK / WORKGROUP;
     for (var i = 0u; i < steps * steps; i++) {
         let texel = texel_at(workgroup, local, i);
         if texel.z != 0u {
             let value = textureLoad(band, texel.xy, 0).r;
             if is_finite(bitcast<u32>(value)) {
-                atomicAdd(&local_counts[bin_of(value, low, half_range, bins)], 1u);
+                atomicAdd(&counts[base + bin_of(value, low, half_range, bins)], 1u);
             }
-        }
-    }
-    workgroupBarrier();
-    let base = params.slot * bins;
-    for (var bin = index; bin < bins; bin += WORKGROUP * WORKGROUP) {
-        let count = atomicLoad(&local_counts[bin]);
-        if count != 0u {
-            atomicAdd(&counts[base + bin], count);
         }
     }
 }
