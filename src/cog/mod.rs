@@ -213,3 +213,8 @@ impl Cog {
         self.read_tiles(&[key]).pop().expect("one result per key")
     }
 }
+
+pub fn describe(cog: &Cog) -> String {
+    let _ = cog;
+    todo!("agent A")
+}
