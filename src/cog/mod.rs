@@ -271,14 +271,17 @@ impl Cog {
         source: Arc<dyn ByteSource>,
         prefix: u64,
     ) -> Result<Cog, CogError> {
-        let file_size = source.size()?;
-        let length = file_size.map_or(prefix, |size| size.min(prefix));
-        let head = match source.read_range(0, length) {
+        // Read first and ask the size after: an HTTP source learns the size
+        // from the range reply, saving a round trip.
+        let head = match source.read_range(0, prefix) {
             Ok(head) => head,
-            // Without a known size, a small file can be shorter than the prefix.
-            Err(_) if file_size.is_none() => source.read_range(0, 16)?,
-            Err(e) => return Err(e.into()),
+            // A file shorter than the prefix: read all of it.
+            Err(e) => match source.size() {
+                Ok(Some(size)) if size < prefix => source.read_range(0, size)?,
+                _ => return Err(e.into()),
+            },
         };
+        let file_size = source.size()?;
         let (header, ifds) = tiff::read_ifds(&*source, head, file_size)?;
         Self::from_ifds(source, header, &ifds, file_size)
     }

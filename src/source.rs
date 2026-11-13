@@ -444,7 +444,7 @@ mod cloud {
     use std::sync::{Arc, OnceLock};
 
     use object_store::path::Path as StorePath;
-    use object_store::{ObjectStore, ObjectStoreExt};
+    use object_store::{GetOptions, GetRange, ObjectStore, ObjectStoreExt};
 
     use super::{SourceError, http_agent};
 
@@ -697,9 +697,18 @@ mod cloud {
             if length == 0 {
                 return Ok(Vec::new());
             }
-            let bytes = self.run(|store, path| async move {
-                store.get_range(&path, offset..offset + length).await
+            // `get_opts` also gives the object's size, which saves `size()`
+            // a request when it's called after the first read.
+            let (size, bytes) = self.run(|store, path| async move {
+                let options = GetOptions {
+                    range: Some(GetRange::Bounded(offset..offset + length)),
+                    ..Default::default()
+                };
+                let result = store.get_opts(&path, options).await?;
+                let size = result.meta.size;
+                Ok((size, result.bytes().await?))
             })?;
+            let _ = self.size.set(size);
             check_length(offset, length, bytes.len())?;
             Ok(bytes.to_vec())
         }

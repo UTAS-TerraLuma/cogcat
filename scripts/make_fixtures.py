@@ -163,6 +163,14 @@ def main():
         cog = to_cog(src, "rgb_jpeg_mask.tif", COMPRESS="JPEG", QUALITY=90)
         fixtures.append(describe(cog, tolerance=3.0, extra={"compression": "Jpeg", "has_mask": True, "photometric": 6}))
 
+        # JPEG without YCbCr: RGB photometric, and a single grey band.
+        prof = profile("uint8", 3, compress="jpeg", photometric="RGB", jpeg_quality=90)
+        gt = write_gtiff("rgb_jpeg_rgb.tif", prof, smooth_rgb())
+        fixtures.append(describe(gt, tolerance=3.0, extra={"compression": "Jpeg", "photometric": 2}))
+        prof = profile("uint8", 1, compress="jpeg", jpeg_quality=90)
+        gt = write_gtiff("grey_jpeg.tif", prof, smooth_rgb()[1:2])
+        fixtures.append(describe(gt, tolerance=3.0, extra={"compression": "Jpeg", "photometric": 1}))
+
         # u8 RGB, lossy WebP.
         src = write_source(tmp, "rgb2.tif", profile("uint8", 3, photometric="RGB"), smooth_rgb())
         cog = to_cog(src, "rgb_webp.tif", COMPRESS="WEBP", QUALITY=90)

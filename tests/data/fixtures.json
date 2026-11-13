@@ -57,6 +57,96 @@
   "photometric": 6
  },
  {
+  "file": "rgb_jpeg_rgb.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 3,
+  "dtype": "uint8",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null,
+   null,
+   null
+  ],
+  "scales": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "offsets": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "tolerance": 3.0,
+  "expected_l0": "rgb_jpeg_rgb.L0.f32.zz",
+  "expected_l1": null,
+  "wavelengths_nm": null,
+  "compression": "Jpeg",
+  "photometric": 2
+ },
+ {
+  "file": "grey_jpeg.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "uint8",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 3.0,
+  "expected_l0": "grey_jpeg.L0.f32.zz",
+  "expected_l1": null,
+  "wavelengths_nm": null,
+  "compression": "Jpeg",
+  "photometric": 1
+ },
+ {
   "file": "rgb_webp.tif",
   "width": 200,
   "height": 150,

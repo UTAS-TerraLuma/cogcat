@@ -268,6 +268,8 @@ macro_rules! fixture_tests {
 
 fixture_tests! {
     rgb_jpeg_with_mask_should_match_gdal => "rgb_jpeg_mask.tif",
+    rgb_jpeg_rgb_photometric_should_match_gdal => "rgb_jpeg_rgb.tif",
+    grey_jpeg_should_match_gdal => "grey_jpeg.tif",
     rgb_webp_should_match_gdal => "rgb_webp.tif",
     u16_deflate_predictor_should_match_gdal => "u16_5band_deflate_p2.tif",
     u16_planar_zstd_should_match_gdal => "u16_planar_zstd.tif",
@@ -285,7 +287,7 @@ fixture_tests! {
 
 #[test]
 fn every_fixture_should_have_a_test() {
-    let tested = 14;
+    let tested = 16;
     assert_eq!(
         fixtures().len(),
         tested,
@@ -331,13 +333,14 @@ fn opening_with_a_tiny_prefix_should_read_the_same_structure() {
 
 #[test]
 fn opening_should_read_the_header_in_one_request() {
-    let source = counting("u16_5band_deflate_p2.tif");
+    // A COG bigger than the 64 KiB first read.
+    let source = counting("f32_lzw_p3.tif");
     let cog = Cog::from_source(source.clone()).unwrap();
     assert_eq!(
         source.requests.load(std::sync::atomic::Ordering::Relaxed),
         1
     );
-    // Every full-resolution tile, data and mask, in few merged reads.
+    // Every full-resolution tile in one merged read.
     let keys: Vec<TileKey> = (0..3)
         .flat_map(|y| (0..4).map(move |x| TileKey { level: 0, x, y }))
         .collect();
