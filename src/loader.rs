@@ -299,6 +299,10 @@ impl TileCache {
         self.tiles.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.tiles.is_empty()
+    }
+
     pub fn keys(&self) -> impl Iterator<Item = &TileKey> {
         self.tiles.keys()
     }
