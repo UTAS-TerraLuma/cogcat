@@ -325,7 +325,7 @@ impl Pending {
                 let (min_max, counts) = words.split_at(self.bands.len() * 2);
                 self.bands
                     .iter()
-                    .zip(min_max.chunks_exact(2))
+                    .zip(min_max.as_chunks::<2>().0.iter())
                     .zip(counts.chunks_exact(self.bins as usize))
                     .map(|((&band, keys), counts)| (band, histogram(keys, counts)))
                     .collect()

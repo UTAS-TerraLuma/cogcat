@@ -330,13 +330,17 @@ fn to_samples(
         }
         return Ok(match layout.data_type {
             DataType::F32 => Samples::F32(
-                be.chunks_exact(4)
-                    .map(|c| f32::from_be_bytes([c[0], c[1], c[2], c[3]]))
+                be.as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|c| f32::from_be_bytes(*c))
                     .collect(),
             ),
             _ => Samples::F64(
-                be.chunks_exact(8)
-                    .map(|c| f64::from_be_bytes(c.try_into().expect("8 bytes")))
+                be.as_chunks::<8>()
+                    .0
+                    .iter()
+                    .map(|c| f64::from_be_bytes(*c))
                     .collect(),
             ),
         });
@@ -355,11 +359,15 @@ fn to_samples(
         16 => {
             let mut words: Vec<u16> = match order {
                 ByteOrder::Little => raw
-                    .chunks_exact(2)
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
                     .map(|c| u16::from_le_bytes([c[0], c[1]]))
                     .collect(),
                 ByteOrder::Big => raw
-                    .chunks_exact(2)
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
                     .map(|c| u16::from_be_bytes([c[0], c[1]]))
                     .collect(),
             };
@@ -372,7 +380,12 @@ fn to_samples(
             }
         }
         32 => {
-            let mut words: Vec<u32> = raw.chunks_exact(4).map(|c| order.u32(c)).collect();
+            let mut words: Vec<u32> = raw
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|c| order.u32(c))
+                .collect();
             if horizontal {
                 undo_horizontal(&mut words, row_samples, samples);
             }
@@ -383,7 +396,12 @@ fn to_samples(
             }
         }
         64 => {
-            let mut words: Vec<u64> = raw.chunks_exact(8).map(|c| order.u64(c)).collect();
+            let mut words: Vec<u64> = raw
+                .as_chunks::<8>()
+                .0
+                .iter()
+                .map(|c| order.u64(c))
+                .collect();
             if horizontal {
                 undo_horizontal(&mut words, row_samples, samples);
             }

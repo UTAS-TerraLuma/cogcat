@@ -51,10 +51,24 @@ fn random_band(random: &mut Random, len: usize, low: f32, high: f32) -> Vec<f32>
 
 /// Waits for request `id`, failing after a generous timeout.
 fn wait_for(renderer: &mut TileRenderer, id: u64) -> StatsResult {
+    wait_for_all(renderer, &[id]).pop().expect("one result")
+}
+
+/// Waits for every request in `ids`, returning results in that order. One
+/// poll can finish several requests, so results are kept until wanted.
+fn wait_for_all(renderer: &mut TileRenderer, ids: &[u64]) -> Vec<StatsResult> {
     let start = Instant::now();
+    let mut done: Vec<StatsResult> = Vec::new();
     loop {
-        if let Some(result) = renderer.poll_stats().into_iter().find(|r| r.id == id) {
-            return result;
+        done.extend(renderer.poll_stats());
+        if ids.iter().all(|id| done.iter().any(|r| r.id == *id)) {
+            return ids
+                .iter()
+                .map(|id| {
+                    let index = done.iter().position(|r| r.id == *id).expect("found above");
+                    done.swap_remove(index)
+                })
+                .collect();
         }
         assert!(
             start.elapsed() < Duration::from_secs(60),
@@ -287,8 +301,9 @@ fn stats_should_answer_requests_in_flight_together() {
     });
     assert_ne!(first, second);
     assert_eq!(renderer.pending_stats(), 2);
-    let (_, a) = &wait_for(&mut renderer, first).histograms[0];
-    let (_, b) = &wait_for(&mut renderer, second).histograms[0];
+    let results = wait_for_all(&mut renderer, &[first, second]);
+    let (_, a) = &results[0].histograms[0];
+    let (_, b) = &results[1].histograms[0];
     assert_eq!((a.min, a.max), (1.0, 2.0));
     assert_eq!((b.min, b.max), (-5.0, 5.0));
     assert_eq!(renderer.pending_stats(), 0);

@@ -189,17 +189,31 @@ impl Ifd {
         let values = match value.field_type {
             1 | 7 => b.iter().map(|&v| v as u64).collect(),
             6 => b.iter().map(|&v| v as i8 as i64 as u64).collect(),
-            3 => b.chunks_exact(2).map(|c| order.u16(c) as u64).collect(),
+            3 => b
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|c| order.u16(c) as u64)
+                .collect(),
             8 => b
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|c| order.u16(c) as i16 as i64 as u64)
                 .collect(),
-            4 | 13 => b.chunks_exact(4).map(|c| order.u32(c) as u64).collect(),
+            4 | 13 => b
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|c| order.u32(c) as u64)
+                .collect(),
             9 => b
-                .chunks_exact(4)
+                .as_chunks::<4>()
+                .0
+                .iter()
                 .map(|c| order.u32(c) as i32 as i64 as u64)
                 .collect(),
-            16..=18 => b.chunks_exact(8).map(|c| order.u64(c)).collect(),
+            16..=18 => b.as_chunks::<8>().0.iter().map(|c| order.u64(c)).collect(),
             other => {
                 return Err(CogError::Invalid(format!(
                     "tag {tag} has field type {other}, expected an integer"
@@ -223,19 +237,27 @@ impl Ifd {
         let b = &value.bytes;
         let values = match value.field_type {
             11 => b
-                .chunks_exact(4)
+                .as_chunks::<4>()
+                .0
+                .iter()
                 .map(|c| f32::from_bits(order.u32(c)) as f64)
                 .collect(),
             12 => b
-                .chunks_exact(8)
+                .as_chunks::<8>()
+                .0
+                .iter()
                 .map(|c| f64::from_bits(order.u64(c)))
                 .collect(),
             5 => b
-                .chunks_exact(8)
+                .as_chunks::<8>()
+                .0
+                .iter()
                 .map(|c| order.u32(c) as f64 / order.u32(&c[4..]) as f64)
                 .collect(),
             10 => b
-                .chunks_exact(8)
+                .as_chunks::<8>()
+                .0
+                .iter()
                 .map(|c| order.u32(c) as i32 as f64 / order.u32(&c[4..]) as i32 as f64)
                 .collect(),
             _ => match self.u64s(tag)? {

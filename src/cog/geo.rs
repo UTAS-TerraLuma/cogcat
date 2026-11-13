@@ -95,7 +95,7 @@ fn geo_keys(tags: &GeoTags) -> Vec<(u16, KeyValue)> {
     }
     let count = dir[3] as usize;
     let mut keys = Vec::new();
-    for entry in dir[4..].chunks_exact(4).take(count) {
+    for entry in dir[4..].as_chunks::<4>().0.iter().take(count) {
         let (id, location, n, index) = (entry[0], entry[1], entry[2] as usize, entry[3] as usize);
         let value = match location {
             0 => Some(KeyValue::Short(index as u16)),
