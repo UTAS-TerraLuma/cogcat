@@ -1,0 +1,49 @@
+[package]
+name = "cogcat"
+version = "0.1.0"
+edition = "2024"
+description = "A viewer for Cloud Optimized GeoTIFFs, local or streamed from HTTP and cloud storage"
+repository = "https://github.com/UTAS-TerraLuma/cogcat"
+license = "MIT OR Apache-2.0"
+default-run = "cogcat-viewer"
+
+[features]
+default = ["cloud"]
+# s3://, gs:// and az:// sources through `object_store`. Without it, only local
+# files and http(s):// URLs open.
+cloud = ["dep:object_store", "dep:tokio"]
+
+[dependencies]
+bytemuck = { version = "1.25.2", features = ["derive"] }
+clap = { version = "4.6.7", features = ["derive"] }
+eframe = "0.36.2"
+egui_plot = "0.37"
+flate2 = "1.1"
+image-webp = "0.2"
+jpeg-decoder = "0.3"
+png = "0.18"
+pollster = "0.4"
+raw-window-handle = "0.6"
+rfd = "0.17"
+ruzstd = "0.8"
+thiserror = "2.0.21"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+url = "2.5.8"
+weezl = "0.1"
+object_store = { version = "0.13", optional = true, features = ["aws", "gcp", "azure"] }
+tokio = { version = "1", optional = true, features = ["rt-multi-thread"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_HiDpi",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.dev.package."*"]
+opt-level = 2
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
