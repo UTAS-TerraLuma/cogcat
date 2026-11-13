@@ -91,13 +91,31 @@ const NAMED: [(&str, f64); 16] = [
 /// A band's centre wavelength in nanometres: from the file, else guessed from
 /// its description.
 pub fn band_wavelengths(info: &CogInfo) -> Vec<Option<f64>> {
-    info.band_info
-        .iter()
+    (0..info.bands)
         .map(|band| {
-            band.wavelength_nm
-                .or_else(|| band.description.as_deref().and_then(wavelength_from_name))
+            let given = info.band_info.get(band as usize);
+            given.and_then(|b| b.wavelength_nm).or_else(|| {
+                band_name(info, band)
+                    .as_deref()
+                    .and_then(wavelength_from_name)
+            })
         })
         .collect()
+}
+
+/// The band's description, or for an RGB image without one, its colour.
+fn band_name(info: &CogInfo, band: u32) -> Option<String> {
+    let description = info
+        .band_info
+        .get(band as usize)
+        .and_then(|b| b.description.clone())
+        .filter(|d| !d.trim().is_empty());
+    description.or_else(|| {
+        let colours = ["Red", "Green", "Blue", "Alpha"];
+        info.is_rgb()
+            .then(|| colours.get(band as usize).map(|c| c.to_string()))
+            .flatten()
+    })
 }
 
 fn wavelength_from_name(name: &str) -> Option<f64> {
@@ -213,12 +231,11 @@ pub fn default_bands(info: &CogInfo) -> Option<[u32; 3]> {
 /// "B04 (665 nm)", "Band 3", ...
 pub fn band_label(info: &CogInfo, band: u32) -> String {
     let wavelengths = band_wavelengths(info);
-    let description = info
-        .band_info
-        .get(band as usize)
-        .and_then(|b| b.description.clone())
-        .filter(|d| !d.trim().is_empty());
-    let wavelength = wavelengths.get(band as usize).copied().flatten();
+    let description = band_name(info, band);
+    // An RGB image's colours are names, not measured wavelengths.
+    let wavelength = (!info.is_rgb())
+        .then(|| wavelengths.get(band as usize).copied().flatten())
+        .flatten();
     match (description, wavelength) {
         (Some(d), Some(w)) => format!("{} · {d} ({w:.0} nm)", band + 1),
         (Some(d), None) => format!("{} · {d}", band + 1),
@@ -323,6 +340,21 @@ mod tests {
     fn one_band_should_have_no_composite() {
         assert_eq!(default_bands(&info(&["elevation"])), None);
         assert!(!is_multispectral(&info(&["elevation"])));
+    }
+
+    #[test]
+    fn rgb_images_should_open_as_true_colour_with_named_bands() {
+        let mut rgb = info(&["", "", ""]);
+        rgb.data_type = DataType::U8;
+        rgb.photometric = 2;
+        assert_eq!(
+            presets(&rgb)[0],
+            Preset {
+                name: "True colour",
+                bands: [0, 1, 2]
+            }
+        );
+        assert_eq!(band_label(&rgb, 0), "1 · Red");
     }
 
     #[test]
