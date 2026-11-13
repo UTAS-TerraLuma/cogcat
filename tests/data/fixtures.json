@@ -663,5 +663,46 @@
   "expected_l1": "u8_pixel_is_point.L1.f32.zz",
   "wavelengths_nm": null,
   "compression": "Deflate"
+ },
+ {
+  "file": "u8_sparse.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "uint8",
+  "nodata": "255.0",
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "u8_sparse.L0.f32.zz",
+  "expected_l1": null,
+  "wavelengths_nm": null,
+  "compression": "Deflate"
  }
 ]

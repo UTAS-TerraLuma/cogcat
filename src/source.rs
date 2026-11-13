@@ -439,6 +439,8 @@ mod cloud {
     //! `s3://`, `gs://` and `az://` through `object_store`, on a shared tokio
     //! runtime that the blocking reads wait on.
 
+    use std::future::Future;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, OnceLock};
 
     use object_store::path::Path as StorePath;
@@ -448,6 +450,13 @@ mod cloud {
 
     pub struct ObjectStoreSource {
         store: Arc<dyn ObjectStore>,
+        /// When requests are signed only because credentials happen to be
+        /// in the environment, an unsigned store to retry with if they're
+        /// refused: those credentials may belong to another account, while
+        /// the bucket is public.
+        unsigned: Option<Arc<dyn ObjectStore>>,
+        /// Set once the unsigned store worked where the signed one didn't.
+        use_unsigned: AtomicBool,
         path: StorePath,
         location: String,
         size: OnceLock<u64>,
@@ -480,10 +489,37 @@ mod cloud {
         Some(matches!(value.as_str(), "yes" | "true" | "1" | "on"))
     }
 
-    /// Skip signing unless credentials are configured, so public buckets
-    /// open without an account.
-    fn skip_signature(no_sign_var: &str, credential_vars: &[&str], has_files: bool) -> bool {
-        no_sign_request(no_sign_var).unwrap_or(!(any_env(credential_vars) || has_files))
+    const AWS_CREDENTIALS: &[&str] = &[
+        "AWS_ACCESS_KEY_ID",
+        "AWS_WEB_IDENTITY_TOKEN_FILE",
+        "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+        "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+    ];
+    const GOOGLE_CREDENTIALS: &[&str] = &[
+        "GOOGLE_SERVICE_ACCOUNT",
+        "GOOGLE_SERVICE_ACCOUNT_PATH",
+        "GOOGLE_SERVICE_ACCOUNT_KEY",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+    ];
+    const AZURE_CREDENTIALS: &[&str] = &[
+        "AZURE_STORAGE_ACCOUNT_KEY",
+        "AZURE_STORAGE_ACCESS_KEY",
+        "AZURE_STORAGE_KEY",
+        "AZURE_STORAGE_SAS_KEY",
+        "AZURE_STORAGE_SAS_TOKEN",
+        "AZURE_STORAGE_TOKEN",
+        "AZURE_CLIENT_ID",
+        "AZURE_FEDERATED_TOKEN_FILE",
+        "AZURE_USE_AZURE_CLI",
+        "AZURE_STORAGE_USE_EMULATOR",
+    ];
+
+    fn is_denied(e: &object_store::Error) -> bool {
+        matches!(
+            e,
+            object_store::Error::PermissionDenied { .. }
+                | object_store::Error::Unauthenticated { .. }
+        )
     }
 
     impl ObjectStoreSource {
@@ -499,20 +535,69 @@ mod cloud {
             let path = StorePath::from_url_path(url.path()).map_err(|e| {
                 SourceError::ObjectStore(format!("bad object path in {location}: {e}"))
             })?;
-            let built = match url.scheme() {
-                "s3" | "s3a" => build_s3(&bucket),
-                "gs" | "gcs" => build_gcs(&bucket),
-                _ => build_azure(location),
+            let scheme = url.scheme();
+            let (no_sign_var, credentials, credential_files) = match scheme {
+                "s3" | "s3a" => ("AWS_NO_SIGN_REQUEST", AWS_CREDENTIALS, false),
+                "gs" | "gcs" => (
+                    "GS_NO_SIGN_REQUEST",
+                    GOOGLE_CREDENTIALS,
+                    gcloud_adc_exists(),
+                ),
+                _ => ("AZURE_NO_SIGN_REQUEST", AZURE_CREDENTIALS, false),
             };
-            let store = built.map_err(|e| {
+            // Sign only with credentials, so public buckets open without an
+            // account; `*_NO_SIGN_REQUEST=YES/NO` (as in GDAL) overrides.
+            let forced = no_sign_request(no_sign_var);
+            let skip = forced.unwrap_or(!(any_env(credentials) || credential_files));
+            let region = matches!(scheme, "s3" | "s3a")
+                .then(|| s3_region(&bucket))
+                .flatten();
+            let build = |skip: bool| match scheme {
+                "s3" | "s3a" => build_s3(&bucket, region.clone(), skip),
+                "gs" | "gcs" => build_gcs(&bucket, skip),
+                _ => build_azure(location, skip),
+            };
+            let store = build(skip).map_err(|e| {
                 SourceError::ObjectStore(format!("couldn't set up access to {location}: {e}"))
             })?;
+            let unsigned = (!skip && forced.is_none())
+                .then(|| build(true).ok())
+                .flatten();
             Ok(ObjectStoreSource {
                 store,
+                unsigned,
+                use_unsigned: AtomicBool::new(false),
                 path,
                 location: location.to_string(),
                 size: OnceLock::new(),
             })
+        }
+
+        /// Runs one request, retrying unsigned if signed requests are
+        /// refused and an unsigned store exists.
+        fn run<T, F, Fut>(&self, op: F) -> Result<T, SourceError>
+        where
+            F: Fn(Arc<dyn ObjectStore>, StorePath) -> Fut,
+            Fut: Future<Output = object_store::Result<T>>,
+        {
+            let unsigned_now = self.use_unsigned.load(Ordering::Relaxed);
+            let store = match (&self.unsigned, unsigned_now) {
+                (Some(unsigned), true) => unsigned.clone(),
+                _ => self.store.clone(),
+            };
+            match runtime().block_on(op(store, self.path.clone())) {
+                Err(e) if is_denied(&e) && !unsigned_now => {
+                    if let Some(unsigned) = &self.unsigned
+                        && let Ok(value) =
+                            runtime().block_on(op(unsigned.clone(), self.path.clone()))
+                    {
+                        self.use_unsigned.store(true, Ordering::Relaxed);
+                        return Ok(value);
+                    }
+                    Err(self.error(e))
+                }
+                result => result.map_err(|e| self.error(e)),
+            }
         }
 
         fn error(&self, e: object_store::Error) -> SourceError {
@@ -530,21 +615,28 @@ mod cloud {
         }
     }
 
-    fn build_s3(bucket: &str) -> object_store::Result<Arc<dyn ObjectStore>> {
-        let mut builder = object_store::aws::AmazonS3Builder::from_env().with_bucket_name(bucket);
-        let custom_endpoint = any_env(&["AWS_ENDPOINT", "AWS_ENDPOINT_URL"]);
-        if !any_env(&["AWS_REGION", "AWS_DEFAULT_REGION"]) && !custom_endpoint {
-            builder =
-                builder.with_region(bucket_region(bucket).unwrap_or_else(|| "us-east-1".into()));
-        }
-        let credentials = [
-            "AWS_ACCESS_KEY_ID",
-            "AWS_WEB_IDENTITY_TOKEN_FILE",
-            "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
-            "AWS_CONTAINER_CREDENTIALS_FULL_URI",
-        ];
-        if skip_signature("AWS_NO_SIGN_REQUEST", &credentials, false) {
-            builder = builder.with_skip_signature(true);
+    /// The region to use for an S3 bucket: from the environment (`None`,
+    /// as object_store reads it), or else asked of S3 itself.
+    fn s3_region(bucket: &str) -> Option<String> {
+        let configured = any_env(&[
+            "AWS_REGION",
+            "AWS_DEFAULT_REGION",
+            "AWS_ENDPOINT",
+            "AWS_ENDPOINT_URL",
+        ]);
+        (!configured).then(|| bucket_region(bucket).unwrap_or_else(|| "us-east-1".into()))
+    }
+
+    fn build_s3(
+        bucket: &str,
+        region: Option<String>,
+        skip_signature: bool,
+    ) -> object_store::Result<Arc<dyn ObjectStore>> {
+        let mut builder = object_store::aws::AmazonS3Builder::from_env()
+            .with_bucket_name(bucket)
+            .with_skip_signature(skip_signature);
+        if let Some(region) = region {
+            builder = builder.with_region(region);
         }
         Ok(Arc::new(builder.build()?))
     }
@@ -573,18 +665,10 @@ mod cloud {
         Some(region.to_string())
     }
 
-    fn build_gcs(bucket: &str) -> object_store::Result<Arc<dyn ObjectStore>> {
-        let mut builder =
-            object_store::gcp::GoogleCloudStorageBuilder::from_env().with_bucket_name(bucket);
-        let credentials = [
-            "GOOGLE_SERVICE_ACCOUNT",
-            "GOOGLE_SERVICE_ACCOUNT_PATH",
-            "GOOGLE_SERVICE_ACCOUNT_KEY",
-            "GOOGLE_APPLICATION_CREDENTIALS",
-        ];
-        if skip_signature("GS_NO_SIGN_REQUEST", &credentials, gcloud_adc_exists()) {
-            builder = builder.with_skip_signature(true);
-        }
+    fn build_gcs(bucket: &str, skip_signature: bool) -> object_store::Result<Arc<dyn ObjectStore>> {
+        let builder = object_store::gcp::GoogleCloudStorageBuilder::from_env()
+            .with_bucket_name(bucket)
+            .with_skip_signature(skip_signature);
         Ok(Arc::new(builder.build()?))
     }
 
@@ -598,23 +682,13 @@ mod cloud {
         dir.is_some_and(|d| d.join("application_default_credentials.json").is_file())
     }
 
-    fn build_azure(location: &str) -> object_store::Result<Arc<dyn ObjectStore>> {
-        let mut builder = object_store::azure::MicrosoftAzureBuilder::from_env().with_url(location);
-        let credentials = [
-            "AZURE_STORAGE_ACCOUNT_KEY",
-            "AZURE_STORAGE_ACCESS_KEY",
-            "AZURE_STORAGE_KEY",
-            "AZURE_STORAGE_SAS_KEY",
-            "AZURE_STORAGE_SAS_TOKEN",
-            "AZURE_STORAGE_TOKEN",
-            "AZURE_CLIENT_ID",
-            "AZURE_FEDERATED_TOKEN_FILE",
-            "AZURE_USE_AZURE_CLI",
-            "AZURE_STORAGE_USE_EMULATOR",
-        ];
-        if skip_signature("AZURE_NO_SIGN_REQUEST", &credentials, false) {
-            builder = builder.with_skip_signature(true);
-        }
+    fn build_azure(
+        location: &str,
+        skip_signature: bool,
+    ) -> object_store::Result<Arc<dyn ObjectStore>> {
+        let builder = object_store::azure::MicrosoftAzureBuilder::from_env()
+            .with_url(location)
+            .with_skip_signature(skip_signature);
         Ok(Arc::new(builder.build()?))
     }
 
@@ -623,9 +697,9 @@ mod cloud {
             if length == 0 {
                 return Ok(Vec::new());
             }
-            let bytes = runtime()
-                .block_on(self.store.get_range(&self.path, offset..offset + length))
-                .map_err(|e| self.error(e))?;
+            let bytes = self.run(|store, path| async move {
+                store.get_range(&path, offset..offset + length).await
+            })?;
             check_length(offset, length, bytes.len())?;
             Ok(bytes.to_vec())
         }
@@ -636,9 +710,11 @@ mod cloud {
                 .filter(|(_, length)| *length > 0)
                 .map(|&(offset, length)| offset..offset + length)
                 .collect();
-            let mut fetched = runtime()
-                .block_on(self.store.get_ranges(&self.path, &wanted))
-                .map_err(|e| self.error(e))?
+            let mut fetched = self
+                .run(|store, path| {
+                    let wanted = wanted.clone();
+                    async move { store.get_ranges(&path, &wanted).await }
+                })?
                 .into_iter();
             ranges
                 .iter()
@@ -657,9 +733,7 @@ mod cloud {
             if let Some(size) = self.size.get() {
                 return Ok(Some(*size));
             }
-            let meta = runtime()
-                .block_on(self.store.head(&self.path))
-                .map_err(|e| self.error(e))?;
+            let meta = self.run(|store, path| async move { store.head(&path).await })?;
             Ok(Some(*self.size.get_or_init(|| meta.size)))
         }
     }

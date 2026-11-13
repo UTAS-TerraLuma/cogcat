@@ -148,7 +148,8 @@ pub struct TileData {
     pub width: u32,
     pub height: u32,
     /// How much of the tile is inside the image: less than `width` and
-    /// `height` for tiles on the right and bottom edges.
+    /// `height` for tiles on the right and bottom edges. Pixels outside it
+    /// are NaN.
     pub valid: [u32; 2],
     pub bands: u32,
     /// Band-sequential: band `b`, row `y`, column `x` is
@@ -444,8 +445,11 @@ impl Cog {
         };
         let jobs: Vec<(TileKey, Result<Vec<ChunkRead>, CogError>)> =
             keys.iter().copied().zip(plans).collect();
+        // With fewer tiles than threads, decode each tile's chunks (band
+        // planes, strips) in parallel too.
+        let parallel_chunks = jobs.len() < decode_threads();
         let decode = |(key, plan): &(TileKey, Result<Vec<ChunkRead>, CogError>)| match plan {
-            Ok(chunks) => self.decode_tile(*key, chunks, &merged, &fetched),
+            Ok(chunks) => self.decode_tile(*key, chunks, &merged, &fetched, parallel_chunks),
             Err(e) => Err(copy_cog_error(e)),
         };
         parallel_map(&jobs, decode)
@@ -522,6 +526,7 @@ impl Cog {
         chunks: &[ChunkRead],
         merged: &[(u64, u64)],
         fetched: &[Vec<u8>],
+        parallel_chunks: bool,
     ) -> Result<TileData, CogError> {
         let level = &self.levels[key.level as usize];
         let li = &self.images[key.level as usize];
@@ -535,15 +540,14 @@ impl Cog {
         let mut fetched_bytes = 0;
         let error = |message: String| CogError::Decode { key, message };
         // Data first, then the mask over it.
-        for chunk in chunks.iter().filter(|c| !c.mask) {
-            if chunk.length == 0 {
-                continue;
-            }
-            fetched_bytes += chunk.length;
+        let image = &li.image;
+        let data_chunks: Vec<&ChunkRead> =
+            chunks.iter().filter(|c| !c.mask && c.length > 0).collect();
+        let decode_chunk = |chunk: &&ChunkRead| {
             let bytes = slice_fetched(merged, fetched, chunk.offset, chunk.length);
-            let image = &li.image;
-            let decoded = decode::decode_chunk(&image.layout, bytes, image.chunk_width, chunk.rows)
-                .map_err(error)?;
+            decode::decode_chunk(&image.layout, bytes, image.chunk_width, chunk.rows)
+        };
+        let mut place = |chunk: &ChunkRead, decoded: Result<decode::Chunk, String>| {
             let placement = Placement {
                 tile_width: width,
                 tile_height: height,
@@ -553,7 +557,19 @@ impl Cog {
                 first_band: chunk.plane,
                 nodata: self.info.nodata,
             };
-            decode::place(&decoded, &mut data, &placement);
+            decode::place(&decoded.map_err(error)?, &mut data, &placement);
+            fetched_bytes += chunk.length;
+            Ok::<(), CogError>(())
+        };
+        if parallel_chunks && data_chunks.len() > 1 {
+            let decoded = parallel_map(&data_chunks, decode_chunk);
+            for (chunk, decoded) in data_chunks.iter().zip(decoded) {
+                place(chunk, decoded)?;
+            }
+        } else {
+            for chunk in &data_chunks {
+                place(chunk, decode_chunk(chunk))?;
+            }
         }
         if let Some(mask) = &li.mask {
             for chunk in chunks.iter().filter(|c| c.mask) {
@@ -896,12 +912,16 @@ fn slice_fetched<'a>(
     &fetched[i][start..start + length as usize]
 }
 
-/// Runs `f` over `items` on a few threads, keeping the order.
-fn parallel_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
-    let threads = std::thread::available_parallelism()
+/// How many threads decode a batch of tiles.
+fn decode_threads() -> usize {
+    std::thread::available_parallelism()
         .map_or(4, |n| n.get())
         .min(MAX_DECODE_THREADS)
-        .min(items.len());
+}
+
+/// Runs `f` over `items` on a few threads, keeping the order.
+fn parallel_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
+    let threads = decode_threads().min(items.len());
     if threads <= 1 {
         return items.iter().map(f).collect();
     }

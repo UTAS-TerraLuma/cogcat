@@ -2,7 +2,6 @@
 //! predictors, byte order, and placing the samples into a band-sequential
 //! `f32` tile with nodata as NaN.
 
-use std::io::Read;
 use std::sync::Arc;
 
 use super::tiff::ByteOrder;
@@ -131,13 +130,31 @@ pub fn decompress(
 }
 
 fn inflate(input: &[u8], expected: usize) -> Result<Vec<u8>, String> {
-    let mut out = Vec::with_capacity(expected);
-    let result = flate2::read::ZlibDecoder::new(input).read_to_end(&mut out);
-    match result {
-        Ok(_) => Ok(out),
-        // A truncated or padded stream that still gave everything is fine.
-        Err(_) if out.len() >= expected => Ok(out),
-        Err(e) => Err(format!("Deflate: {e}")),
+    // One call into a buffer of the expected size is much faster than
+    // streaming through `Read`. A stream that ends early, or is longer than
+    // expected, is passed on for the caller to pad or trim.
+    let mut out = Vec::with_capacity(expected.max(1));
+    let mut inflater = flate2::Decompress::new(true);
+    loop {
+        let consumed = inflater.total_in() as usize;
+        let status = inflater
+            .decompress_vec(
+                &input[consumed..],
+                &mut out,
+                flate2::FlushDecompress::Finish,
+            )
+            .map_err(|e| format!("Deflate: {e}"))?;
+        match status {
+            flate2::Status::StreamEnd => return Ok(out),
+            // Out of input: a truncated stream; keep what came out.
+            _ if inflater.total_in() as usize >= input.len() => return Ok(out),
+            // Out of room: the tile is bigger than expected; grow and go on.
+            _ if out.len() == out.capacity() => out.reserve(out.capacity()),
+            _ if inflater.total_in() as usize == consumed => {
+                return Err("Deflate: the stream stopped making progress".into());
+            }
+            _ => {}
+        }
     }
 }
 

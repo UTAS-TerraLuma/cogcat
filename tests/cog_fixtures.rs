@@ -78,7 +78,8 @@ fn read_level(cog: &Cog, level: usize) -> Vec<f32> {
                 l.tile_height.min(l.height - y0 as u32)
             ]
         );
-        assert!(tile.fetched_bytes > 0);
+        // Only sparse tiles, which are all NaN, come from no bytes.
+        assert!(tile.fetched_bytes > 0 || tile.data.iter().all(|v| v.is_nan()));
         for b in 0..bands {
             let band = tile.band(b as u32);
             for ty in 0..tile.height as usize {
@@ -279,11 +280,12 @@ fixture_tests! {
     stripped_i8_should_match_gdal => "i8_stripped.tif",
     rotated_i32_should_match_gdal => "i32_rotated.tif",
     pixel_is_point_should_match_gdal => "u8_pixel_is_point.tif",
+    sparse_tiles_should_match_gdal => "u8_sparse.tif",
 }
 
 #[test]
 fn every_fixture_should_have_a_test() {
-    let tested = 13;
+    let tested = 14;
     assert_eq!(
         fixtures().len(),
         tested,
@@ -365,6 +367,20 @@ fn nodata_should_only_blank_the_bands_that_have_it() {
             .enumerate()
             .all(|(b, v)| b == 1 || !v.is_nan())
     );
+}
+
+#[test]
+fn sparse_tiles_should_be_all_nan_without_reading_anything() {
+    let cog = open("u8_sparse.tif");
+    let tile = cog
+        .read_tile(TileKey {
+            level: 0,
+            x: 2,
+            y: 1,
+        })
+        .unwrap();
+    assert_eq!(tile.fetched_bytes, 0);
+    assert!(tile.data.iter().all(|v| v.is_nan()));
 }
 
 #[test]

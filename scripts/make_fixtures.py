@@ -23,6 +23,7 @@ import zlib
 import numpy as np
 import rasterio
 import rasterio.shutil
+import rasterio.windows
 from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.transform import Affine
@@ -271,6 +272,13 @@ def main():
         )
         cog = to_cog(src, "u8_pixel_is_point.tif", COMPRESS="DEFLATE")
         fixtures.append(describe(cog, extra={"compression": "Deflate"}))
+
+        # Sparse tiles (no bytes at all) where nothing was written; nodata 255.
+        out = os.path.join(ROOT, "u8_sparse.tif")
+        with rasterio.open(out, "w", **profile("uint8", 1, nodata=255, compress="deflate", sparse_ok=True)) as dst:
+            window = rasterio.windows.Window(0, 0, 64, 150)
+            dst.write(((xx[:, :64] + yy[:, :64]) % 250).astype(np.uint8)[None], window=window)
+        fixtures.append(describe(out, extra={"compression": "Deflate"}))
     finally:
         shutil.rmtree(tmp)
 
