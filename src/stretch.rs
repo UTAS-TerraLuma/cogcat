@@ -361,21 +361,3 @@ mod tests {
         }
     }
 }
-
-impl Default for StretchMode {
-    fn default() -> Self {
-        StretchMode::Percentile {
-            low: 2.0,
-            high: 98.0,
-        }
-    }
-}
-
-impl StretchMode {
-    pub const OPTIMIZED_LINEAR: StretchMode = StretchMode::OptimizedLinear {
-        low: 2.5,
-        high: 99.0,
-        low_adjust: 0.1,
-        high_adjust: 0.5,
-    };
-}
