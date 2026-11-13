@@ -17,8 +17,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Ubuntu 22.04 matches the release build. No apt packages are needed:
-        # wgpu and winit load Vulkan, GL, X11 and Wayland at runtime.
+        # Ubuntu 22.04 matches the release build. wgpu and winit load Vulkan,
+        # GL, X11 and Wayland at runtime, so nothing is needed to build.
         os: [ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -27,6 +27,10 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      # Lavapipe, a software Vulkan driver, so the GPU tests run rather than
+      # skip. (Windows runners have WARP, a software Direct3D 12.)
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y mesa-vulkan-drivers
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
