@@ -1246,8 +1246,3 @@ mod tests {
         );
     }
 }
-
-pub fn describe(cog: &Cog) -> String {
-    let _ = cog;
-    todo!("agent A")
-}
