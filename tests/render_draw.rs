@@ -2,22 +2,12 @@
 //! note) when no GPU adapter is available, as on CI runners; in a container,
 //! Mesa's lavapipe (software Vulkan) is enough.
 
+mod common;
+
 use std::collections::HashSet;
 
 use cogcat::cog::TileKey;
-use cogcat::render::{
-    Colormap, DisplayStyle, Image, TileDraw, TileRenderer, Viewport, headless_device,
-};
-
-fn renderer() -> Option<TileRenderer> {
-    match headless_device() {
-        Ok((device, queue)) => Some(TileRenderer::headless(device, queue)),
-        Err(error) => {
-            eprintln!("skipping GPU test: {error}");
-            None
-        }
-    }
-}
+use cogcat::render::{Colormap, DisplayStyle, Image, TileDraw, TileRenderer, Viewport};
 
 fn key(x: u32) -> TileKey {
     TileKey { level: 0, x, y: 0 }
@@ -76,7 +66,7 @@ fn capture(
 
 #[test]
 fn capture_should_stretch_each_band_linearly() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     // A 4 × 4 tile drawn 1:1, values 0, 10, ..., 150 in band 0.
@@ -108,7 +98,7 @@ fn capture_should_stretch_each_band_linearly() {
 
 #[test]
 fn capture_should_write_half_as_byte_128() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [1, 1], &[0.5]);
@@ -124,7 +114,7 @@ fn capture_should_write_half_as_byte_128() {
 
 #[test]
 fn capture_should_apply_gamma_after_stretching() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [2, 1], &[25.0, 0.0]);
@@ -152,7 +142,7 @@ fn capture_should_apply_gamma_after_stretching() {
 
 #[test]
 fn capture_should_show_the_background_where_any_band_is_nan() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     renderer.upload_band(key(0), 0, [2, 1], &[f32::NAN, 1.0]);
@@ -176,7 +166,7 @@ fn capture_should_show_the_background_where_any_band_is_nan() {
 
 #[test]
 fn capture_should_show_tiles_underneath_nan_pixels() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [1, 1], &[1.0]);
@@ -197,7 +187,7 @@ fn capture_should_show_tiles_underneath_nan_pixels() {
 
 #[test]
 fn capture_should_draw_later_tiles_on_top() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [1, 1], &[0.2]);
@@ -216,7 +206,7 @@ fn capture_should_draw_later_tiles_on_top() {
 
 #[test]
 fn capture_should_clear_to_the_background_where_nothing_is_drawn() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     let style = DisplayStyle {
@@ -229,7 +219,7 @@ fn capture_should_clear_to_the_background_where_nothing_is_drawn() {
 
 #[test]
 fn capture_should_draw_a_rotated_quad() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     let values: Vec<f32> = (0..16).map(|i| i as f32 / 15.0).collect();
@@ -259,7 +249,7 @@ fn capture_should_draw_a_rotated_quad() {
 
 #[test]
 fn capture_should_map_a_partial_edge_tile_to_its_valid_texels() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     // An 8 × 8 texture whose valid area is the top-left 2 × 4 texels.
@@ -292,7 +282,7 @@ fn capture_should_map_a_partial_edge_tile_to_its_valid_texels() {
 
 #[test]
 fn capture_should_scale_texels_to_pixels_by_nearest_neighbour() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [2, 1], &[0.0, 1.0]);
@@ -315,7 +305,7 @@ fn capture_should_scale_texels_to_pixels_by_nearest_neighbour() {
 
 #[test]
 fn capture_should_draw_one_band_through_a_colormap() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     // Only band 5 is uploaded: the others in `bands` aren't needed.
@@ -359,7 +349,7 @@ fn capture_should_draw_one_band_through_a_colormap() {
 
 #[test]
 fn capture_should_interpolate_the_colormap_between_entries() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     renderer.upload_band(key(0), 0, [1, 1], &[0.5]);
@@ -382,7 +372,7 @@ fn capture_should_interpolate_the_colormap_between_entries() {
 
 #[test]
 fn capture_should_blend_the_tint_by_its_alpha() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [1, 1], &[0.0]);
@@ -401,7 +391,7 @@ fn capture_should_blend_the_tint_by_its_alpha() {
 
 #[test]
 fn capture_should_reject_impossible_sizes() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     let mut viewport = Viewport::default();
@@ -420,7 +410,7 @@ fn capture_should_reject_impossible_sizes() {
 
 #[test]
 fn viewport_should_follow_size_changes() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [1, 1], &[1.0]);
@@ -437,7 +427,7 @@ fn viewport_should_follow_size_changes() {
 
 #[test]
 fn render_should_grow_the_vertex_buffer_for_many_tiles() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     // 100 tiles in a 10 × 10 grid, each its own value.
@@ -469,7 +459,7 @@ fn render_should_grow_the_vertex_buffer_for_many_tiles() {
 
 #[test]
 fn upload_should_replace_a_band_and_its_bytes() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [4, 4], &[0.0; 16]);
@@ -496,7 +486,7 @@ fn upload_should_replace_a_band_and_its_bytes() {
 
 #[test]
 fn evict_should_free_least_recently_drawn_first_and_keep_what_is_asked() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     for x in 0..4 {
@@ -539,7 +529,7 @@ fn evict_should_free_least_recently_drawn_first_and_keep_what_is_asked() {
 
 #[test]
 fn evicted_tiles_should_be_skipped_when_drawing() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     upload_gray(&mut renderer, key(0), [1, 1], &[1.0]);

@@ -1,21 +1,13 @@
 //! GPU statistics checked against histograms computed on the CPU. Skipped
 //! (with a note) when no GPU adapter is available.
 
+mod common;
+
 use std::time::{Duration, Instant};
 
 use cogcat::cog::TileKey;
-use cogcat::render::{StatsRequest, StatsResult, TileRenderer, headless_device};
+use cogcat::render::{StatsRequest, StatsResult, TileRenderer};
 use cogcat::stretch::Histogram;
-
-fn renderer() -> Option<TileRenderer> {
-    match headless_device() {
-        Ok((device, queue)) => Some(TileRenderer::headless(device, queue)),
-        Err(error) => {
-            eprintln!("skipping GPU test: {error}");
-            None
-        }
-    }
-}
 
 fn key(x: u32, y: u32) -> TileKey {
     TileKey { level: 1, x, y }
@@ -140,7 +132,7 @@ fn assert_matches(gpu: &Histogram, cpu: &Histogram, what: &str) {
 
 #[test]
 fn stats_should_match_the_cpu_over_tiles_bands_and_rectangles() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     let mut random = Random(0x1234_5678_9abc_def0);
@@ -187,7 +179,7 @@ fn stats_should_match_the_cpu_over_tiles_bands_and_rectangles() {
 
 #[test]
 fn stats_should_put_a_constant_band_in_bin_zero() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     let mut values = vec![3.25; 64 * 64];
@@ -206,7 +198,7 @@ fn stats_should_put_a_constant_band_in_bin_zero() {
 
 #[test]
 fn stats_should_be_empty_without_finite_texels_or_uploads() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     renderer.upload_band(key(0, 0), 0, [8, 8], &[f32::NAN; 64]);
@@ -226,7 +218,7 @@ fn stats_should_be_empty_without_finite_texels_or_uploads() {
 
 #[test]
 fn stats_should_count_the_maximum_in_the_last_bin() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     // Bins of width 1 over 0..3, away from the bin edges but for the maximum.
@@ -246,7 +238,7 @@ fn stats_should_count_the_maximum_in_the_last_bin() {
 
 #[test]
 fn stats_should_handle_many_regions_and_the_most_bins() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     let mut random = Random(42);
@@ -284,7 +276,7 @@ fn stats_should_handle_many_regions_and_the_most_bins() {
 
 #[test]
 fn stats_should_answer_requests_in_flight_together() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     renderer.upload_band(key(0, 0), 0, [2, 1], &[1.0, 2.0]);
@@ -311,7 +303,7 @@ fn stats_should_answer_requests_in_flight_together() {
 
 #[test]
 fn stats_should_finish_after_the_textures_are_evicted() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     renderer.upload_band(key(0, 0), 0, [16, 16], &[7.0; 256]);
@@ -330,7 +322,7 @@ fn stats_should_finish_after_the_textures_are_evicted() {
 #[test]
 #[ignore = "timing only"]
 fn stats_timing_for_fifty_tiles_of_three_bands() {
-    let Some(mut renderer) = renderer() else {
+    let Some(mut renderer) = common::renderer() else {
         return;
     };
     let mut random = Random(7);
