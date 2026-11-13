@@ -1,0 +1,798 @@
+[
+ {
+  "file": "rgb_jpeg_mask.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 3,
+  "dtype": "uint8",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    37
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null,
+   null,
+   null
+  ],
+  "scales": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "offsets": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "tolerance": 3.0,
+  "expected_l0": "rgb_jpeg_mask.L0.f32.zz",
+  "expected_l1": "rgb_jpeg_mask.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "Jpeg",
+  "has_mask": true,
+  "photometric": 6
+ },
+ {
+  "file": "rgb_jpeg_rgb.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 3,
+  "dtype": "uint8",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null,
+   null,
+   null
+  ],
+  "scales": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "offsets": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "tolerance": 3.0,
+  "expected_l0": "rgb_jpeg_rgb.L0.f32.zz",
+  "expected_l1": null,
+  "wavelengths_nm": null,
+  "compression": "Jpeg",
+  "photometric": 2
+ },
+ {
+  "file": "grey_jpeg.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "uint8",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 3.0,
+  "expected_l0": "grey_jpeg.L0.f32.zz",
+  "expected_l1": null,
+  "wavelengths_nm": null,
+  "compression": "Jpeg",
+  "photometric": 1
+ },
+ {
+  "file": "rgb_webp.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 3,
+  "dtype": "uint8",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    37
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null,
+   null,
+   null
+  ],
+  "scales": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "offsets": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "tolerance": 3.0,
+  "expected_l0": "rgb_webp.L0.f32.zz",
+  "expected_l1": "rgb_webp.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "Webp",
+  "photometric": 2
+ },
+ {
+  "file": "u16_5band_deflate_p2.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 5,
+  "dtype": "uint16",
+  "nodata": "0.0",
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    37
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   "blue",
+   "green",
+   "red",
+   "rededge",
+   "nir"
+  ],
+  "scales": [
+   0.0001,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "offsets": [
+   -0.1,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "u16_5band_deflate_p2.L0.f32.zz",
+  "expected_l1": "u16_5band_deflate_p2.L1.f32.zz",
+  "wavelengths_nm": [
+   490.0,
+   560.0,
+   665.0,
+   705.0,
+   842.0
+  ],
+  "compression": "Deflate"
+ },
+ {
+  "file": "u16_planar_zstd.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 3,
+  "dtype": "uint16",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    38
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null,
+   null,
+   null
+  ],
+  "scales": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "offsets": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "u16_planar_zstd.L0.f32.zz",
+  "expected_l1": "u16_planar_zstd.L1.f32.zz",
+  "wavelengths_nm": [
+   450.5,
+   550.0,
+   650.25
+  ],
+  "compression": "Zstd",
+  "planar": "Separate"
+ },
+ {
+  "file": "f32_lzw_p3.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "float32",
+  "nodata": "-9999.0",
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    37
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "f32_lzw_p3.L0.f32.zz",
+  "expected_l1": "f32_lzw_p3.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "Lzw"
+ },
+ {
+  "file": "i16_packbits.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "int16",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    37
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "i16_packbits.L0.f32.zz",
+  "expected_l1": "i16_packbits.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "PackBits"
+ },
+ {
+  "file": "f64_none.tif",
+  "width": 90,
+  "height": 70,
+  "bands": 1,
+  "dtype": "float64",
+  "nodata": null,
+  "block": [
+   32,
+   32
+  ],
+  "levels": [
+   [
+    90,
+    70
+   ],
+   [
+    45,
+    35
+   ],
+   [
+    22,
+    17
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "f64_none.L0.f32.zz",
+  "expected_l1": "f64_none.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "None"
+ },
+ {
+  "file": "u16_bigendian_p2.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "uint16",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "u16_bigendian_p2.L0.f32.zz",
+  "expected_l1": "u16_bigendian_p2.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "Deflate"
+ },
+ {
+  "file": "f32_bigendian_p3.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "float32",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "f32_bigendian_p3.L0.f32.zz",
+  "expected_l1": null,
+  "wavelengths_nm": null,
+  "compression": "Deflate"
+ },
+ {
+  "file": "u32_bigtiff.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "uint32",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    37
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "u32_bigtiff.L0.f32.zz",
+  "expected_l1": "u32_bigtiff.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "Deflate",
+  "bigtiff": true
+ },
+ {
+  "file": "i8_stripped.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 2,
+  "dtype": "int8",
+  "nodata": null,
+  "block": [
+   200,
+   7
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null,
+   null
+  ],
+  "scales": [
+   1.0,
+   1.0
+  ],
+  "offsets": [
+   0.0,
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "i8_stripped.L0.f32.zz",
+  "expected_l1": null,
+  "wavelengths_nm": null,
+  "compression": "Lzw"
+ },
+ {
+  "file": "i32_rotated.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "int32",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    37
+   ]
+  ],
+  "transform": [
+   500000.0,
+   8.660254,
+   -5.0,
+   5270000.0,
+   -5.0,
+   -8.660254
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "i32_rotated.L0.f32.zz",
+  "expected_l1": "i32_rotated.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "Deflate"
+ },
+ {
+  "file": "u8_pixel_is_point.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "uint8",
+  "nodata": null,
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ],
+   [
+    100,
+    75
+   ],
+   [
+    50,
+    37
+   ]
+  ],
+  "transform": [
+   147.0,
+   0.001,
+   0.0,
+   -42.0,
+   0.0,
+   -0.001
+  ],
+  "epsg": 4326,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "u8_pixel_is_point.L0.f32.zz",
+  "expected_l1": "u8_pixel_is_point.L1.f32.zz",
+  "wavelengths_nm": null,
+  "compression": "Deflate"
+ },
+ {
+  "file": "u8_sparse.tif",
+  "width": 200,
+  "height": 150,
+  "bands": 1,
+  "dtype": "uint8",
+  "nodata": "255.0",
+  "block": [
+   64,
+   64
+  ],
+  "levels": [
+   [
+    200,
+    150
+   ]
+  ],
+  "transform": [
+   523980.0,
+   10.0,
+   0.0,
+   5272020.0,
+   0.0,
+   -10.0
+  ],
+  "epsg": 32755,
+  "descriptions": [
+   null
+  ],
+  "scales": [
+   1.0
+  ],
+  "offsets": [
+   0.0
+  ],
+  "tolerance": 0.0,
+  "expected_l0": "u8_sparse.L0.f32.zz",
+  "expected_l1": null,
+  "wavelengths_nm": null,
+  "compression": "Deflate"
+ }
+]
