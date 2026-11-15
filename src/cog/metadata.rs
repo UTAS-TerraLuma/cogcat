@@ -157,16 +157,39 @@ pub fn band_info(items: &[MetadataItem], bands: u32) -> Vec<BandInfo> {
                 .or_else(|| find("DESCRIPTION"))
                 .filter(|d| !d.is_empty())
                 .map(String::from);
-            let central_um = find("CENTRAL_WAVELENGTH_UM").and_then(|v| v.parse::<f64>().ok());
-            let wavelength = find("wavelength").and_then(|v| v.parse::<f64>().ok());
-            let wavelength_nm = central_um
+            let number = |name: &str| find(name).and_then(|v| v.parse::<f64>().ok());
+            let units = find("wavelength_units")
+                .or_else(|| find("WAVELENGTH_UNIT"))
+                .or_else(|| find("units"));
+            // Keys that say their units first, then a bare value with
+            // separate (or guessed) units.
+            let bare_wavelength = number("wavelength")
+                .or_else(|| number("center_wavelength"))
+                .or_else(|| number("central_wavelength"));
+            let wavelength_nm = number("CENTRAL_WAVELENGTH_UM")
+                .or_else(|| number("WAVELENGTH_UM"))
                 .map(|um| um * 1000.0)
-                .or_else(|| wavelength.and_then(|w| to_nanometres(w, find("wavelength_units"))))
+                .or_else(|| number("CENTRAL_WAVELENGTH_NM"))
+                .or_else(|| number("WAVELENGTH_NM"))
+                .or_else(|| bare_wavelength.and_then(|w| to_nanometres(w, units)))
                 .or_else(|| envi_wavelengths.get(band as usize).copied().flatten())
                 .filter(|w| w.is_finite() && *w > 0.0);
+            // A bare FWHM is in the wavelength's units: as stated, else µm
+            // when a bare wavelength looked like µm, else nanometres.
+            let bare_fwhm = number("FWHM").or_else(|| number("full_width_half_max"));
+            let fwhm_units = units.or(match bare_wavelength {
+                Some(w) if w < 100.0 => Some("um"),
+                _ => Some("nm"),
+            });
+            let fwhm_nm = number("FWHM_UM")
+                .map(|um| um * 1000.0)
+                .or_else(|| number("FWHM_NM"))
+                .or_else(|| bare_fwhm.and_then(|f| to_nanometres(f, fwhm_units)))
+                .filter(|f| f.is_finite() && *f > 0.0);
             BandInfo {
                 description,
                 wavelength_nm,
+                fwhm_nm,
                 scale: role("scale").and_then(|v| v.parse().ok()),
                 offset: role("offset").and_then(|v| v.parse().ok()),
             }
@@ -276,6 +299,29 @@ mod tests {
         assert_eq!(info[2].wavelength_nm, Some(665.0));
         assert_eq!(info[3].wavelength_nm, Some(842.0));
         assert_eq!(info[4], BandInfo::default());
+    }
+
+    #[test]
+    fn band_info_should_read_wavelength_nm_and_fwhm_keys() {
+        // As written by the dronescape_ard pipeline (MicaSense RedEdge-P Dual).
+        let xml = r#"<GDALMetadata>
+  <Item name="DESCRIPTION" sample="0" role="description">Coastal [444 nm]</Item>
+  <Item name="FWHM_NM" sample="0">28</Item>
+  <Item name="WAVELENGTH_NM" sample="0">444</Item>
+  <Item name="WAVELENGTH_UNIT" sample="0">nm</Item>
+  <Item name="wavelength" sample="1">0.475</Item>
+  <Item name="FWHM" sample="1">0.032</Item>
+  <Item name="FWHM_UM" sample="2">0.014</Item>
+  <Item name="CENTRAL_WAVELENGTH_UM" sample="2">0.531</Item>
+</GDALMetadata>"#;
+        let info = band_info(&parse_items(xml), 3);
+        assert_eq!(info[0].description.as_deref(), Some("Coastal [444 nm]"));
+        assert_eq!(info[0].wavelength_nm, Some(444.0));
+        assert_eq!(info[0].fwhm_nm, Some(28.0));
+        assert_eq!(info[1].wavelength_nm, Some(475.0));
+        assert_eq!(info[1].fwhm_nm, Some(32.0));
+        assert_eq!(info[2].wavelength_nm, Some(531.0));
+        assert_eq!(info[2].fwhm_nm, Some(14.0));
     }
 
     #[test]

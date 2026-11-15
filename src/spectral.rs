@@ -2,7 +2,7 @@
 //! wavelength (or band number), with spectra pinned by clicking the map.
 
 use eframe::egui;
-use egui_plot::{Legend, Line, LineStyle, Plot, Points, VLine};
+use egui_plot::{Legend, Line, LineStyle, Plot, Points, Span, VLine};
 
 use crate::cog::CogInfo;
 use crate::composite;
@@ -57,6 +57,8 @@ impl Default for SpectralView {
 /// A band's position on the x axis and value, for plotting.
 struct Axis {
     xs: Vec<Option<f64>>,
+    /// Whether `xs` are wavelengths (else band numbers).
+    by_wavelength: bool,
     label: &'static str,
     scales: Vec<(f64, f64)>,
 }
@@ -96,7 +98,12 @@ impl SpectralView {
                 }
             })
             .collect();
-        Axis { xs, label, scales }
+        Axis {
+            by_wavelength: label.starts_with("Wavelength"),
+            xs,
+            label,
+            scales,
+        }
     }
 
     /// Draws the panel: controls, then the plot.
@@ -171,6 +178,15 @@ impl SpectralView {
                     for (channel, (band, color)) in bands.iter().zip(colors).enumerate() {
                         if let Some(Some(x)) = axis.xs.get(*band as usize) {
                             let name = ["R", "G", "B"][channel];
+                            // Shade the band's width when it's known.
+                            let fwhm = info.band_info.get(*band as usize).and_then(|b| b.fwhm_nm);
+                            if let (true, Some(fwhm)) = (axis.by_wavelength, fwhm) {
+                                plot.span(
+                                    Span::new(name, x - fwhm / 2.0..=x + fwhm / 2.0)
+                                        .fill(color.gamma_multiply(0.12))
+                                        .border_width(0.0),
+                                );
+                            }
                             plot.vline(
                                 VLine::new(name, *x)
                                     .color(color.gamma_multiply(0.6))

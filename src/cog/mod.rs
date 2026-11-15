@@ -68,9 +68,12 @@ pub struct BandInfo {
     /// GDAL's band description, e.g. `B04` or `red`.
     pub description: Option<String>,
     /// Centre wavelength in nanometres, from GDAL metadata (`wavelength`,
-    /// `CENTRAL_WAVELENGTH_UM`, ENVI-style `wavelength` lists, ...), converted
-    /// from µm when the units say so.
+    /// `CENTRAL_WAVELENGTH_UM`, `WAVELENGTH_NM`, ENVI-style `wavelength`
+    /// lists, ...), converted from µm when the units say so.
     pub wavelength_nm: Option<f64>,
+    /// Full width at half maximum (the band's width) in nanometres, from
+    /// `FWHM_NM`, `FWHM_UM` or `FWHM`.
+    pub fwhm_nm: Option<f64>,
     pub scale: Option<f64>,
     pub offset: Option<f64>,
 }
@@ -1188,8 +1191,11 @@ pub fn describe(cog: &Cog) -> String {
             if let Some(d) = &band.description {
                 parts.push(d.clone());
             }
-            if let Some(w) = band.wavelength_nm {
-                parts.push(format!("{w} nm"));
+            match (band.wavelength_nm, band.fwhm_nm) {
+                (Some(w), Some(f)) => parts.push(format!("{w} nm (FWHM {f} nm)")),
+                (Some(w), None) => parts.push(format!("{w} nm")),
+                (None, Some(f)) => parts.push(format!("FWHM {f} nm")),
+                (None, None) => {}
             }
             if let Some(scale) = band.scale {
                 parts.push(format!("scale {scale}"));
