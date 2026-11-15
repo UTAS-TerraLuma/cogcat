@@ -1,6 +1,6 @@
 [package]
 name = "cogcat"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A viewer for Cloud Optimized GeoTIFFs, local or streamed from HTTP and cloud storage"
 repository = "https://github.com/UTAS-TerraLuma/cogcat"
