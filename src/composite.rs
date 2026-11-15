@@ -119,6 +119,9 @@ fn band_name(info: &CogInfo, band: u32) -> Option<String> {
 }
 
 fn wavelength_from_name(name: &str) -> Option<f64> {
+    if let Some(wavelength) = explicit_wavelength(name) {
+        return Some(wavelength);
+    }
     let lower = name.trim().to_ascii_lowercase();
     let upper = lower.to_ascii_uppercase();
     // Sentinel-2: B02, B8A (also B2 for B02).
@@ -142,6 +145,38 @@ fn wavelength_from_name(name: &str) -> Option<f64> {
         .iter()
         .find(|(word, _)| lower == *word || lower.starts_with(word) || lower.contains(word))
         .map(|(_, wavelength)| *wavelength)
+}
+
+/// A wavelength written in a name with its units, e.g. `Green [531 nm]`,
+/// `NIR 842nm` or `0.865 µm`, in nanometres.
+fn explicit_wavelength(name: &str) -> Option<f64> {
+    let chars: Vec<char> = name.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if !chars[i].is_ascii_digit() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
+            i += 1;
+        }
+        let number: String = chars[start..i].iter().collect();
+        let mut j = i;
+        while j < chars.len() && chars[j] == ' ' {
+            j += 1;
+        }
+        let unit: String = chars[j..].iter().take(2).collect::<String>().to_lowercase();
+        let Ok(value) = number.parse::<f64>() else {
+            continue;
+        };
+        match unit.as_str() {
+            "nm" => return Some(value),
+            "µm" | "μm" | "um" => return Some(value * 1000.0),
+            _ => {}
+        }
+    }
+    None
 }
 
 /// The band nearest a region's centre, if any is within its tolerance.
@@ -232,8 +267,12 @@ pub fn default_bands(info: &CogInfo) -> Option<[u32; 3]> {
 pub fn band_label(info: &CogInfo, band: u32) -> String {
     let wavelengths = band_wavelengths(info);
     let description = band_name(info, band);
-    // An RGB image's colours are names, not measured wavelengths.
-    let wavelength = (!info.is_rgb())
+    // An RGB image's colours are names, not measured wavelengths, and a
+    // description that already says its wavelength needn't say it twice.
+    let says_wavelength = description
+        .as_deref()
+        .is_some_and(|d| explicit_wavelength(d).is_some());
+    let wavelength = (!info.is_rgb() && !says_wavelength)
         .then(|| wavelengths.get(band as usize).copied().flatten())
         .flatten();
     match (description, wavelength) {
@@ -321,6 +360,35 @@ mod tests {
             ]
         );
         assert_eq!(default_bands(&rededge), Some([2, 1, 0]));
+    }
+
+    #[test]
+    fn wavelengths_written_in_descriptions_should_beat_colour_names() {
+        let dual = info(&[
+            "Coastal [444 nm]",
+            "Blue [475 nm]",
+            "Green [531 nm]",
+            "Green [560 nm]",
+            "Red [650 nm]",
+            "Red [668 nm]",
+            "RedEdge [705 nm]",
+            "RedEdge [717 nm]",
+            "RedEdge [740 nm]",
+            "NIR [842 nm]",
+        ]);
+        let wavelengths = band_wavelengths(&dual);
+        assert_eq!(wavelengths[2], Some(531.0));
+        assert_eq!(wavelengths[3], Some(560.0));
+        assert_eq!(band_label(&dual, 2), "3 · Green [531 nm]");
+        assert_eq!(
+            presets(&dual)[0],
+            Preset {
+                name: "True colour",
+                bands: [5, 3, 1]
+            }
+        );
+        assert_eq!(wavelength_from_name("NIR 0.865um"), Some(865.0));
+        assert_eq!(wavelength_from_name("B8A"), Some(865.0));
     }
 
     #[test]
